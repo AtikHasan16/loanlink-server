@@ -37,12 +37,14 @@ app.get("/", (req, res) => {
 
 const database = client.db("LoanLink");
 const loansCollection = database.collection("loans");
-
+const applicationCollection = database.collection("applications");
 // MongoDB connection
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    // ****** loan data *******
 
     // Endpoint to post loans
     app.post("/loans", async (req, res) => {
@@ -66,6 +68,24 @@ async function run() {
     // endpoint to get 6 loans for home page
     app.get("/loans/home", async (req, res) => {
       const result = await loansCollection.find().limit(6).toArray();
+      res.send(result);
+    });
+
+    // **** loan application API *******
+
+    // endpoint for loanApplication post
+    app.post("/loanApplication", async (req, res) => {
+      const applicationData = req.body;
+      const result = await applicationCollection.insertOne(applicationData);
+      res.send(result);
+    });
+
+    // endpoint for email
+    app.get("/loanApplication", async (req, res) => {
+      const { email } = req.query;
+      const query = { userEmail: email };
+      const cursor = applicationCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
     });
 
