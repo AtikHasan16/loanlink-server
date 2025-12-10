@@ -80,13 +80,26 @@ async function run() {
       res.send(result);
     });
 
-    // endpoint for email
+    // endpoint for get loanApplication for user with email meager with status
     app.get("/loanApplication", async (req, res) => {
       const { email } = req.query;
-      const query = { userEmail: email };
-      const cursor = applicationCollection.find(query);
-      const result = await cursor.toArray();
-      res.send(result);
+      const { status } = req.query;
+
+      if (email) {
+        const query = { userEmail: email };
+        const result = await applicationCollection.find(query).toArray();
+        res.send(result);
+      }
+      if (status === "pending") {
+        const query = { status: status };
+        const result = await applicationCollection.find(query).toArray();
+        res.send(result);
+      }
+      if (status === "approved") {
+        const query = { status: status };
+        const result = await applicationCollection.find(query).toArray();
+        res.send(result);
+      }
     });
 
     // Send a ping to confirm a successful connection
