@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = process.env.MONGODB_URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -25,11 +25,10 @@ const verifyFirebaseToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).send({ message: "Unauthorized access" });
-  } const token = authHeader.split(" ")[1];
+  }
+  const token = authHeader.split(" ")[1];
 
   // Verify the token using Firebase Admin SDK
-
-  
 };
 
 app.get("/", (req, res) => {
@@ -37,7 +36,7 @@ app.get("/", (req, res) => {
 });
 
 const database = client.db("LoanLink");
-const loans = database.collection("loans");
+const loansCollection = database.collection("loans");
 
 // MongoDB connection
 async function run() {
@@ -46,21 +45,27 @@ async function run() {
     await client.connect();
 
     // Endpoint to post loans
-
     app.post("/loans", async (req, res) => {
       const loan = req.body;
-      const result = await loans.insertOne(loan);
+      const result = await loansCollection.insertOne(loan);
       res.send(result);
     });
     // Endpoint to get all loans for all loan page
     app.get("/loans", async (req, res) => {
-      const result = await loans.find().toArray();
+      const result = await loansCollection.find().toArray();
+      res.send(result);
+    });
+    // Endpoint to get single loan by ID
+    app.get("/loans/all-loans/:loanId", async (req, res) => {
+      const id = req.params.loanId;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.findOne(query);
       res.send(result);
     });
 
     // endpoint to get 6 loans for home page
     app.get("/loans/home", async (req, res) => {
-      const result = await loans.find().limit(6).toArray();
+      const result = await loansCollection.find().limit(6).toArray();
       res.send(result);
     });
 
