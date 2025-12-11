@@ -102,6 +102,23 @@ async function run() {
       }
     });
 
+    // Endpoint for manager to update status rejected or approved
+    app.patch("/loanApplication/:applicationId", async (req, res) => {
+      const id = req.params.applicationId;
+      const { currentStatus } = req.body;
+      const filter = { _id: new ObjectId(id) };
+      if (currentStatus === "approved") {
+        const update = { $set: { status: "approved" } };
+        const result = await applicationCollection.updateOne(filter, update);
+        res.send(result);
+      }
+      if (currentStatus === "rejected") {
+        const update = { $set: { status: "rejected" } };
+        const result = await applicationCollection.updateOne(filter, update)
+        res.send(result)
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
