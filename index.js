@@ -108,14 +108,31 @@ async function run() {
       const { currentStatus } = req.body;
       const filter = { _id: new ObjectId(id) };
       if (currentStatus === "approved") {
-        const update = { $set: { status: "approved" } };
+        const update = {
+          $set: { status: "approved", approvedAt: new Date().toLocaleString() },
+        };
         const result = await applicationCollection.updateOne(filter, update);
         res.send(result);
       }
       if (currentStatus === "rejected") {
         const update = { $set: { status: "rejected" } };
-        const result = await applicationCollection.updateOne(filter, update)
-        res.send(result)
+        const result = await applicationCollection.updateOne(filter, update);
+        res.send(result);
+      }
+      if (currentStatus === "pending") {
+        const update = { $set: { status: "pending" } };
+        const result = await applicationCollection.updateOne(filter, update);
+        res.send(result);
+      }
+      if (currentStatus === "cancelled") {
+        const update = {
+          $set: {
+            status: "cancelled",
+            cancelledAt: new Date().toLocaleString(),
+          },
+        };
+        const result = await applicationCollection.updateOne(filter, update);
+        res.send(result);
       }
     });
 
