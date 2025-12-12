@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
-const stripe = require("stripe")(process.env.STIPE_SECRET);
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -47,6 +47,8 @@ async function run() {
     await client.connect();
 
     //******* Stripe payment integration ********
+
+    // Checkout API
     app.post("/create-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
       const amount = parseInt(paymentInfo.amount) * 100;
@@ -69,11 +71,32 @@ async function run() {
         metadata: {
           loanId: paymentInfo.loanId,
         },
-        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
-        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-failed`,
       });
       console.log(session);
       res.send({ url: session.url });
+    });
+
+    // after checkout Retrieve API
+    app.patch("/payment-success", async (req, res) => {
+      const querySession = req.query.session_id;
+      const session = await stripe.checkout.sessions.retrieve(querySession);
+      console.log(session);
+      if (session.payment_status === "paid") {
+        const id = session.metadata.loanId;
+        const query = { _id: new ObjectId(id) };
+        const update = {
+          $set: {
+            paymentStatus: "paid",
+            transactionId: session.payment_intent,
+          },
+        };
+        const result = applicationCollection.updateOne(query, update);
+        res.send(result);
+      }
+
+      res.send({ success: true });
     });
 
     // ****** loan data *******
