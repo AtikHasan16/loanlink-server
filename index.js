@@ -70,6 +70,13 @@ async function run() {
       const result = await loansCollection.find().limit(6).toArray();
       res.send(result);
     });
+    // endpoint to delete loans from manage loan
+    app.delete("/loans/:loanId", async (req, res) => {
+      const id = req.params.loanId;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // **** loan application API *******
 
