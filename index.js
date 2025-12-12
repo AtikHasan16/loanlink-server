@@ -92,7 +92,7 @@ async function run() {
             transactionId: session.payment_intent,
           },
         };
-        const result = applicationCollection.updateOne(query, update);
+        const result = await applicationCollection.updateOne(query, update);
         res.send(result);
       }
 
