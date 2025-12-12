@@ -6,6 +6,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { messaging } = require("firebase-admin");
 const uri = process.env.MONGODB_URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -40,6 +41,7 @@ app.get("/", (req, res) => {
 const database = client.db("LoanLink");
 const loansCollection = database.collection("loans");
 const applicationCollection = database.collection("applications");
+const paymentInfoCollection = database.collection("payment_info");
 // MongoDB connection
 async function run() {
   try {
@@ -70,6 +72,7 @@ async function run() {
         mode: "payment",
         metadata: {
           loanId: paymentInfo.loanId,
+          loanTitle: paymentInfo.loanTitle,
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-failed`,
@@ -82,6 +85,16 @@ async function run() {
     app.patch("/payment-success", async (req, res) => {
       const querySession = req.query.session_id;
       const session = await stripe.checkout.sessions.retrieve(querySession);
+
+      const transactionId = session.payment_intent;
+      const query = { transactionId: transactionId };
+      const paymentExist = await paymentInfoCollection.findOne(query);
+      if (paymentExist) {
+        return res.send({
+          message: "payment info is trying to inject multiple time",
+          transactionId,
+        });
+      }
       console.log(session);
       if (session.payment_status === "paid") {
         const id = session.metadata.loanId;
@@ -93,10 +106,27 @@ async function run() {
           },
         };
         const result = await applicationCollection.updateOne(query, update);
-        res.send(result);
-      }
+        const paymentHistory = {
+          amount: session.amount_total / 100,
+          currency: session.currency,
+          customerEmail: session.customer_email,
+          loanId: session.metadata.loanId,
+          loanTitle: session.metadata.loanTitle,
+          transactionId: session.payment_intent,
+          paymentStatus: session.payment_status,
+          paidAt: new Date().toLocaleString(),
+        };
 
-      res.send({ success: true });
+        const resultPayment = await paymentInfoCollection.insertOne(
+          paymentHistory
+        );
+        res.send({
+          success: true,
+          modifiedApplication: result,
+          paymentInfo: resultPayment,
+          transactionId: session.payment_intent,
+        });
+      }
     });
 
     // ****** loan data *******
