@@ -173,7 +173,17 @@ async function run() {
 
     // endpoint to get 6 loans for home page
     app.get("/loans/home", async (req, res) => {
-      const result = await loansCollection.find().limit(6).toArray();
+      const query = { showOnHome: true };
+      const result = await loansCollection.find(query).limit(6).toArray();
+      res.send(result);
+    });
+
+    // endpoint patch to update loan from admin all loans
+    app.patch("/loans/:loanId", async (req, res) => {
+      const id = req.params.loanId;
+      const filter = { _id: new ObjectId(id) };
+      const update = { $set: { showOnHome: req.body.showOnHome } };
+      const result = await loansCollection.updateOne(filter, update);
       res.send(result);
     });
     // endpoint to delete loans from manage loan
