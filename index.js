@@ -3,10 +3,19 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
-
 const port = process.env.PORT || 5000;
+
+// firebase admin setup
+var admin = require("firebase-admin");
+var serviceAccount = require("./loan-link-admin-token.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+// mongodb setup
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const { messaging } = require("firebase-admin");
+const e = require("express");
+// Connection URI
 const uri = process.env.MONGODB_URI;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -23,15 +32,19 @@ app.use(express.json());
 
 // verify firebase token middleware
 
-const verifyFirebaseToken = (req, res, next) => {
+const verifyFirebaseToken = async (req, res, next) => {
   // Get the token from the Authorization header
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).send({ message: "Unauthorized access" });
   }
-  const token = authHeader.split(" ")[1];
-
-  // Verify the token using Firebase Admin SDK
+  try {
+    const idToken = authHeader.split(" ")[1];
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    console.log("decoded token", decodedToken);
+    req.decodedEmail = decodedToken.email;
+  } catch (error) {}
+  next();
 };
 
 app.get("/", (req, res) => {
@@ -39,6 +52,7 @@ app.get("/", (req, res) => {
 });
 
 const database = client.db("LoanLink");
+const usersCollection = database.collection("users");
 const loansCollection = database.collection("loans");
 const applicationCollection = database.collection("applications");
 const paymentInfoCollection = database.collection("payment_info");
@@ -129,6 +143,13 @@ async function run() {
       }
     });
 
+    // *****  Endpoint for user data *****
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
     // ****** loan data *******
 
     // Endpoint to post loans
@@ -173,9 +194,17 @@ async function run() {
     });
 
     // endpoint for get loanApplication for user with email meager with status
-    app.get("/loanApplication", async (req, res) => {
+    app.get("/loanApplication", verifyFirebaseToken, async (req, res) => {
       const { email } = req.query;
       const { status } = req.query;
+      const query = {};
+      if (email) {
+        query.userEmail = email;
+
+        if (email !== req.decodedEmail) {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+      }
 
       if (email) {
         const query = { userEmail: email };
@@ -226,6 +255,17 @@ async function run() {
         const result = await applicationCollection.updateOne(filter, update);
         res.send(result);
       }
+    });
+
+    // *********** Payment info ************
+
+    app.get("/payment-info", async (req, res) => {
+      const transactionId = req.query.transactionId;
+      console.log(transactionId);
+
+      const query = { transactionId: transactionId };
+      const result = await paymentInfoCollection.findOne(query);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
