@@ -189,7 +189,13 @@ async function run() {
       const result = await usersCollection.findOne(query);
       res.send(result);
     });
-
+    // Endpoint to get user by role
+    app.get("/users/role/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ role: user?.role || "user" });
+    });
     // Endpoint to update user data
     app.patch("/users/:userId", async (req, res) => {
       const id = req.params.userId;
