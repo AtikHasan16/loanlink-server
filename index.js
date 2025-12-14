@@ -43,8 +43,8 @@ const verifyFirebaseToken = async (req, res, next) => {
   try {
     const idToken = authHeader.split(" ")[1];
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    console.log("decoded token", decodedToken);
     req.decodedEmail = decodedToken.email;
+    // console.log("decoded email", req.decodedEmail);
   } catch (error) {}
   next();
 };
@@ -68,51 +68,63 @@ async function run() {
     // verify admin
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decodedEmail;
+      // console.log(decodedEmail);
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
-      if (user?.role !== "admin") {
+      if (!user || user?.role !== "admin") {
         return res.status(403).send({ message: "forbidden access" });
       }
       next();
     };
-
     // verify manager
-
-    //******* Stripe payment integration ********
+    const verifyManager = async (req, res, next) => {
+      const decodedEmail = req.decodedEmail;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (!user || user?.role !== "manager") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+    //******* Stripe payment integration ******** User
 
     // Checkout API
-    app.post("/create-checkout-session", async (req, res) => {
-      const paymentInfo = req.body;
-      const amount = parseInt(paymentInfo.amount) * 100;
-      const session = await stripe.checkout.sessions.create({
-        line_items: [
-          {
-            price_data: {
-              currency: "USD",
-              unit_amount: amount,
-              product_data: {
-                name: paymentInfo.loanTitle,
+    app.post(
+      "/create-checkout-session",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const paymentInfo = req.body;
+        const amount = parseInt(paymentInfo.amount) * 100;
+        const session = await stripe.checkout.sessions.create({
+          line_items: [
+            {
+              price_data: {
+                currency: "USD",
+                unit_amount: amount,
+                product_data: {
+                  name: paymentInfo.loanTitle,
+                },
               },
-            },
 
-            quantity: 1,
+              quantity: 1,
+            },
+          ],
+          customer_email: paymentInfo.customerEmail,
+          mode: "payment",
+          metadata: {
+            loanId: paymentInfo.loanId,
+            loanTitle: paymentInfo.loanTitle,
           },
-        ],
-        customer_email: paymentInfo.customerEmail,
-        mode: "payment",
-        metadata: {
-          loanId: paymentInfo.loanId,
-          loanTitle: paymentInfo.loanTitle,
-        },
-        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-failed`,
-      });
-      console.log(session);
-      res.send({ url: session.url });
-    });
+          success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-failed`,
+        });
+        console.log(session);
+        res.send({ url: session.url });
+      }
+    );
 
     // after checkout Retrieve API
-    app.patch("/payment-success", async (req, res) => {
+    app.patch("/payment-success", verifyFirebaseToken, async (req, res) => {
       const querySession = req.query.session_id;
       const session = await stripe.checkout.sessions.retrieve(querySession);
 
@@ -159,7 +171,7 @@ async function run() {
       }
     });
 
-    // *****  Endpoint for user data *****
+    // *****  Endpoint for user data ***** Admin
 
     // Endpoint to post users
     app.post("/users", async (req, res) => {
@@ -169,7 +181,7 @@ async function run() {
     });
 
     // Endpoint to get all users
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyFirebaseToken, verifyAdmin, async (req, res) => {
       const email = req.query.email;
       console.log(email);
 
@@ -183,35 +195,40 @@ async function run() {
     });
 
     // Endpoint to get single user by id
-    app.get("/users/:userId", async (req, res) => {
+    app.get("/users/:userId", verifyFirebaseToken, async (req, res) => {
       const id = req.params.userId;
       const query = { _id: new ObjectId(id) };
       const result = await usersCollection.findOne(query);
       res.send(result);
     });
     // Endpoint to get user by role
-    app.get("/users/role/:email", async (req, res) => {
+    app.get("/users/role/:email", verifyFirebaseToken, async (req, res) => {
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ role: user?.role || "user" });
     });
     // Endpoint to update user data
-    app.patch("/users/:userId", async (req, res) => {
-      const id = req.params.userId;
-      const filter = { _id: new ObjectId(id) };
-      const updatedUser = req.body;
-      const update = {
-        $set: updatedUser,
-      };
-      const result = await usersCollection.updateOne(filter, update);
-      res.send(result);
-    });
+    app.patch(
+      "/users/:userId",
+      verifyFirebaseToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.userId;
+        const filter = { _id: new ObjectId(id) };
+        const updatedUser = req.body;
+        const update = {
+          $set: updatedUser,
+        };
+        const result = await usersCollection.updateOne(filter, update);
+        res.send(result);
+      }
+    );
 
-    // ****** loan data *******
+    // ****** loan data ******* Manager
 
     // Endpoint to post loans
-    app.post("/loans", async (req, res) => {
+    app.post("/loans", verifyFirebaseToken, verifyManager, async (req, res) => {
       const loan = req.body;
       const result = await loansCollection.insertOne(loan);
       res.send(result);
@@ -223,12 +240,16 @@ async function run() {
     });
 
     // Endpoint to get single loan by ID
-    app.get("/loans/all-loans/:loanId", async (req, res) => {
-      const id = req.params.loanId;
-      const query = { _id: new ObjectId(id) };
-      const result = await loansCollection.findOne(query);
-      res.send(result);
-    });
+    app.get(
+      "/loans/all-loans/:loanId",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const id = req.params.loanId;
+        const query = { _id: new ObjectId(id) };
+        const result = await loansCollection.findOne(query);
+        res.send(result);
+      }
+    );
 
     // endpoint to get 6 loans for home page
     app.get("/loans/home", async (req, res) => {
@@ -238,18 +259,24 @@ async function run() {
     });
 
     // endpoint patch to update loan showOnHome from admin all loans
-    app.patch("/loans/:loanId", async (req, res) => {
-      const id = req.params.loanId;
-      const filter = { _id: new ObjectId(id) };
-      const update = { $set: { showOnHome: req.body.showOnHome } };
-      const result = await loansCollection.updateOne(filter, update);
-      res.send(result);
-    });
+    app.patch(
+      "/loans/:loanId",
+      verifyFirebaseToken,
+
+      async (req, res) => {
+        const id = req.params.loanId;
+        const filter = { _id: new ObjectId(id) };
+        const update = { $set: { showOnHome: req.body.showOnHome } };
+        const result = await loansCollection.updateOne(filter, update);
+        res.send(result);
+      }
+    );
 
     // Endpoint patch to update loan from admin edit loans
     app.patch(
       "/loans/edit-loan/:loanId",
       verifyFirebaseToken,
+      verifyAdmin,
       async (req, res) => {
         const id = req.params.loanId;
         const filter = { _id: new ObjectId(id) };
@@ -262,7 +289,7 @@ async function run() {
       }
     );
     // endpoint to delete loans from manage loan
-    app.delete("/loans/:loanId", async (req, res) => {
+    app.delete("/loans/:loanId", verifyFirebaseToken, async (req, res) => {
       const id = req.params.loanId;
       const query = { _id: new ObjectId(id) };
       const result = await loansCollection.deleteOne(query);
@@ -272,13 +299,13 @@ async function run() {
     // **** loan application API *******
 
     // endpoint for loanApplication post
-    app.post("/loanApplication", async (req, res) => {
+    app.post("/loanApplication", verifyFirebaseToken, async (req, res) => {
       const applicationData = req.body;
       const result = await applicationCollection.insertOne(applicationData);
       res.send(result);
     });
 
-    // endpoint for get loanApplication for user with email meager with status
+    // endpoint for get loanApplication for user with email and  status
     app.get("/loanApplication", verifyFirebaseToken, async (req, res) => {
       const { email } = req.query;
       const { status } = req.query;
@@ -309,42 +336,50 @@ async function run() {
     });
 
     // Endpoint for manager to update status rejected or approved
-    app.patch("/loanApplication/:applicationId", async (req, res) => {
-      const id = req.params.applicationId;
-      const { currentStatus } = req.body;
-      const filter = { _id: new ObjectId(id) };
-      if (currentStatus === "approved") {
-        const update = {
-          $set: { status: "approved", approvedAt: new Date().toLocaleString() },
-        };
-        const result = await applicationCollection.updateOne(filter, update);
-        res.send(result);
+    app.patch(
+      "/loanApplication/:applicationId",
+      verifyFirebaseToken,
+      verifyManager,
+      async (req, res) => {
+        const id = req.params.applicationId;
+        const { currentStatus } = req.body;
+        const filter = { _id: new ObjectId(id) };
+        if (currentStatus === "approved") {
+          const update = {
+            $set: {
+              status: "approved",
+              approvedAt: new Date().toLocaleString(),
+            },
+          };
+          const result = await applicationCollection.updateOne(filter, update);
+          res.send(result);
+        }
+        if (currentStatus === "rejected") {
+          const update = { $set: { status: "rejected" } };
+          const result = await applicationCollection.updateOne(filter, update);
+          res.send(result);
+        }
+        if (currentStatus === "pending") {
+          const update = { $set: { status: "pending" } };
+          const result = await applicationCollection.updateOne(filter, update);
+          res.send(result);
+        }
+        if (currentStatus === "cancelled") {
+          const update = {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date().toLocaleString(),
+            },
+          };
+          const result = await applicationCollection.updateOne(filter, update);
+          res.send(result);
+        }
       }
-      if (currentStatus === "rejected") {
-        const update = { $set: { status: "rejected" } };
-        const result = await applicationCollection.updateOne(filter, update);
-        res.send(result);
-      }
-      if (currentStatus === "pending") {
-        const update = { $set: { status: "pending" } };
-        const result = await applicationCollection.updateOne(filter, update);
-        res.send(result);
-      }
-      if (currentStatus === "cancelled") {
-        const update = {
-          $set: {
-            status: "cancelled",
-            cancelledAt: new Date().toLocaleString(),
-          },
-        };
-        const result = await applicationCollection.updateOne(filter, update);
-        res.send(result);
-      }
-    });
+    );
 
     // *********** Payment info ************
 
-    app.get("/payment-info", async (req, res) => {
+    app.get("/payment-info", verifyFirebaseToken, async (req, res) => {
       const transactionId = req.query.transactionId;
       console.log(transactionId);
 
