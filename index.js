@@ -168,7 +168,6 @@ async function run() {
 
     // Endpoint to update user data
     app.patch("/users/:userId", async (req, res) => {
-
       const id = req.params.userId;
       const filter = { _id: new ObjectId(id) };
       const updatedUser = req.body;
