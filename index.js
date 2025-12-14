@@ -181,7 +181,7 @@ async function run() {
     });
 
     // Endpoint to get all users
-    app.get("/users", verifyFirebaseToken, verifyAdmin, async (req, res) => {
+    app.get("/users", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
       console.log(email);
 
@@ -257,7 +257,25 @@ async function run() {
       const result = await loansCollection.find(query).limit(6).toArray();
       res.send(result);
     });
+    // endpoint to get paginated loans for all loans page
+    app.get("/loans", async (req, res) => {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
 
+      const result = await loansCollection
+        .find()
+        .skip(skip)
+        .limit(limit)
+        .toArray();
+      const total = await loansCollection.countDocuments();
+
+      res.send({
+        loans: result,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+      });
+    });
     // endpoint patch to update loan showOnHome from admin all loans
     app.patch(
       "/loans/:loanId",
@@ -304,10 +322,21 @@ async function run() {
       const result = await applicationCollection.insertOne(applicationData);
       res.send(result);
     });
-
+    // get all loan applications
+    app.get(
+      "/loanApplications",
+      verifyFirebaseToken,
+      verifyManager,
+      async (req, res) => {
+        const result = await applicationCollection.find().toArray();
+        res.send(result);
+      }
+    );
     // endpoint for get loanApplication for user with email and  status
     app.get("/loanApplication", verifyFirebaseToken, async (req, res) => {
       const { email } = req.query;
+      console.log(email);
+
       const { status } = req.query;
       const query = {};
       if (email) {
