@@ -7,11 +7,13 @@ const port = process.env.PORT || 5000;
 
 // firebase admin setup
 var admin = require("firebase-admin");
-var serviceAccount = require("./loan-link-admin-token.json");
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf8"
+);
+const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-
 // mongodb setup
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const e = require("express");
@@ -60,7 +62,21 @@ const paymentInfoCollection = database.collection("payment_info");
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
+
+    //******** Middleware to verify roles ******
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decodedEmail;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    // verify manager
 
     //******* Stripe payment integration ********
 
@@ -154,6 +170,14 @@ async function run() {
 
     // Endpoint to get all users
     app.get("/users", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+
+      if (email) {
+        const query = { email: email };
+        const result = await usersCollection.findOne(query);
+        return res.send(result);
+      }
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -324,7 +348,7 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
