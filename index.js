@@ -144,9 +144,40 @@ async function run() {
     });
 
     // *****  Endpoint for user data *****
+
+    // Endpoint to post users
     app.post("/users", async (req, res) => {
       const user = req.body;
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    // Endpoint to get all users
+    app.get("/users", async (req, res) => {
+      
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    // Endpoint to get single user by id
+    app.get("/users/:userId", async (req, res) => {
+
+      const id = req.params.userId;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+
+    // Endpoint to update user data
+    app.patch("/users/:userId", async (req, res) => {
+
+      const id = req.params.userId;
+      const filter = { _id: new ObjectId(id) };
+      const updatedUser = req.body;
+      const update = {
+        $set: updatedUser,
+      };
+      const result = await usersCollection.updateOne(filter, update);
       res.send(result);
     });
 
