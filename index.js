@@ -160,7 +160,6 @@ async function run() {
 
     // Endpoint to get single user by id
     app.get("/users/:userId", async (req, res) => {
-
       const id = req.params.userId;
       const query = { _id: new ObjectId(id) };
       const result = await usersCollection.findOne(query);
