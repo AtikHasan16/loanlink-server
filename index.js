@@ -163,6 +163,7 @@ async function run() {
       const result = await loansCollection.find().toArray();
       res.send(result);
     });
+
     // Endpoint to get single loan by ID
     app.get("/loans/all-loans/:loanId", async (req, res) => {
       const id = req.params.loanId;
@@ -178,7 +179,7 @@ async function run() {
       res.send(result);
     });
 
-    // endpoint patch to update loan from admin all loans
+    // endpoint patch to update loan showOnHome from admin all loans
     app.patch("/loans/:loanId", async (req, res) => {
       const id = req.params.loanId;
       const filter = { _id: new ObjectId(id) };
@@ -186,6 +187,22 @@ async function run() {
       const result = await loansCollection.updateOne(filter, update);
       res.send(result);
     });
+
+    // Endpoint patch to update loan from admin edit loans
+    app.patch(
+      "/loans/edit-loan/:loanId",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const id = req.params.loanId;
+        const filter = { _id: new ObjectId(id) };
+        const updatedLoan = req.body;
+        const update = {
+          $set: updatedLoan,
+        };
+        const result = await loansCollection.updateOne(filter, update);
+        res.send(result);
+      }
+    );
     // endpoint to delete loans from manage loan
     app.delete("/loans/:loanId", async (req, res) => {
       const id = req.params.loanId;
