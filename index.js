@@ -154,7 +154,6 @@ async function run() {
 
     // Endpoint to get all users
     app.get("/users", async (req, res) => {
-      
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
