@@ -176,6 +176,14 @@ async function run() {
     // Endpoint to post users
     app.post("/users", async (req, res) => {
       const user = req.body;
+      // console.log(user.email);
+
+      const query = { email: user.email };
+      const ifExist = await usersCollection.findOne(query);
+      // console.log(ifExist?.email);
+      if (ifExist?.email === user.email) {
+        return res.send({ message: "User already exists" });
+      }
       const result = await usersCollection.insertOne(user);
       res.send(result);
     });
