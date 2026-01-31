@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000;
 // firebase admin setup
 var admin = require("firebase-admin");
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
-  "utf8"
+  "utf8",
 );
 const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
@@ -62,7 +62,7 @@ const paymentInfoCollection = database.collection("payment_info");
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     //******** Middleware to verify roles ******
     // verify admin
@@ -120,7 +120,7 @@ async function run() {
         });
         console.log(session);
         res.send({ url: session.url });
-      }
+      },
     );
 
     // after checkout Retrieve API
@@ -159,9 +159,8 @@ async function run() {
           paidAt: new Date().toLocaleString(),
         };
 
-        const resultPayment = await paymentInfoCollection.insertOne(
-          paymentHistory
-        );
+        const resultPayment =
+          await paymentInfoCollection.insertOne(paymentHistory);
         res.send({
           success: true,
           modifiedApplication: result,
@@ -265,24 +264,10 @@ async function run() {
       const result = await loansCollection.find(query).limit(6).toArray();
       res.send(result);
     });
-    // endpoint to get paginated loans for all loans page
-    app.get("/loans", async (req, res) => {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const skip = (page - 1) * limit;
-
-      const result = await loansCollection
-        .find()
-        .skip(skip)
-        .limit(limit)
-        .toArray();
-      const total = await loansCollection.countDocuments();
-
-      res.send({
-        loans: result,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-      });
+    // endpoint to get all loans for all-loans page
+    app.get("/loans/all-loans", verifyFirebaseToken, async (req, res) => {
+      const result = await loansCollection.find().toArray();
+      res.send(result);
     });
     // endpoint patch to update loan showOnHome from admin all loans
     app.patch(
@@ -312,7 +297,7 @@ async function run() {
         };
         const result = await loansCollection.updateOne(filter, update);
         res.send(result);
-      }
+      },
     );
     // endpoint to delete loans from manage loan
     app.delete("/loans/:loanId", verifyFirebaseToken, async (req, res) => {
@@ -338,7 +323,7 @@ async function run() {
       async (req, res) => {
         const result = await applicationCollection.find().toArray();
         res.send(result);
-      }
+      },
     );
     // endpoint for get loanApplication for user with email and  status
     app.get("/loanApplication", verifyFirebaseToken, async (req, res) => {
@@ -411,7 +396,7 @@ async function run() {
           const result = await applicationCollection.updateOne(filter, update);
           res.send(result);
         }
-      }
+      },
     );
 
     // *********** Payment info ************
@@ -428,16 +413,13 @@ async function run() {
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
+      "Pinged your deployment. You successfully connected to MongoDB!",
     );
   } catch (err) {
     console.error(err);
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
   }
 }
-run().catch(console.dir);
+run();
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
