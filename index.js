@@ -62,7 +62,7 @@ const paymentInfoCollection = database.collection("payment_info");
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     //******** Middleware to verify roles ******
     // verify admin
