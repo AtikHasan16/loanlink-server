@@ -62,7 +62,7 @@ const paymentInfoCollection = database.collection("payment_info");
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     //******** Middleware to verify roles ******
     // verify admin
@@ -265,7 +265,7 @@ async function run() {
       res.send(result);
     });
     // endpoint to get all loans for all-loans page
-    app.get("/loans/all-loans", async (req, res) => {
+    app.get("/all-loans", async (req, res) => {
       const result = await loansCollection.find().toArray();
       res.send(result);
     });
