@@ -229,7 +229,7 @@ async function run() {
         };
         const result = await usersCollection.updateOne(filter, update);
         res.send(result);
-      }
+      },
     );
 
     // ****** loan data ******* Manager
@@ -241,7 +241,7 @@ async function run() {
       res.send(result);
     });
     // Endpoint to get all loans for all loan page
-    app.get("/loans", async (req, res) => {
+    app.get("/loans", verifyFirebaseToken, verifyManager, async (req, res) => {
       const result = await loansCollection.find().toArray();
       res.send(result);
     });
@@ -255,7 +255,7 @@ async function run() {
         const query = { _id: new ObjectId(id) };
         const result = await loansCollection.findOne(query);
         res.send(result);
-      }
+      },
     );
 
     // endpoint to get 6 loans for home page
@@ -265,7 +265,7 @@ async function run() {
       res.send(result);
     });
     // endpoint to get all loans for all-loans page
-    app.get("/loans/all-loans", verifyFirebaseToken, async (req, res) => {
+    app.get("/loans/all-loans", async (req, res) => {
       const result = await loansCollection.find().toArray();
       res.send(result);
     });
@@ -280,7 +280,7 @@ async function run() {
         const update = { $set: { showOnHome: req.body.showOnHome } };
         const result = await loansCollection.updateOne(filter, update);
         res.send(result);
-      }
+      },
     );
 
     // Endpoint patch to update loan from admin edit loans
@@ -411,7 +411,7 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
+    await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!",
     );
