@@ -68,7 +68,7 @@ async function run() {
     // verify admin
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decodedEmail;
-      // console.log(decodedEmail);
+      console.log(decodedEmail);
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
       if (!user || user?.role !== "admin") {
@@ -240,7 +240,7 @@ async function run() {
       const result = await loansCollection.insertOne(loan);
       res.send(result);
     });
-    // Endpoint to get all loans for all loan page
+    // Endpoint to get all loans for all loan page in dashboard
     app.get(
       "/loans",
       verifyFirebaseToken,
@@ -253,19 +253,15 @@ async function run() {
     );
 
     // Endpoint to get single loan by ID
-    app.get(
-      "/loans/all-loans/:loanId",
-      verifyFirebaseToken,
-      async (req, res) => {
-        const id = req.params.loanId;
-        const query = { _id: new ObjectId(id) };
-        const result = await loansCollection.findOne(query);
-        res.send(result);
-      },
-    );
+    app.get("/all-loans/:loanId", verifyFirebaseToken, async (req, res) => {
+      const id = req.params.loanId;
+      const query = { _id: new ObjectId(id) };
+      const result = await loansCollection.findOne(query);
+      res.send(result);
+    });
 
     // endpoint to get 6 loans for home page
-    app.get("/loans/home", async (req, res) => {
+    app.get("/loansHome", async (req, res) => {
       const query = { showOnHome: true };
       const result = await loansCollection.find(query).limit(6).toArray();
       res.send(result);
@@ -306,12 +302,18 @@ async function run() {
       },
     );
     // endpoint to delete loans from manage loan
-    app.delete("/loans/:loanId", verifyFirebaseToken, async (req, res) => {
-      const id = req.params.loanId;
-      const query = { _id: new ObjectId(id) };
-      const result = await loansCollection.deleteOne(query);
-      res.send(result);
-    });
+    app.delete(
+      "/loans/:loanId",
+      verifyFirebaseToken,
+      verifyAdmin,
+      verifyManager,
+      async (req, res) => {
+        const id = req.params.loanId;
+        const query = { _id: new ObjectId(id) };
+        const result = await loansCollection.deleteOne(query);
+        res.send(result);
+      },
+    );
 
     // **** loan application API *******
 
