@@ -241,10 +241,16 @@ async function run() {
       res.send(result);
     });
     // Endpoint to get all loans for all loan page
-    app.get("/loans", verifyFirebaseToken, verifyManager, async (req, res) => {
-      const result = await loansCollection.find().toArray();
-      res.send(result);
-    });
+    app.get(
+      "/loans",
+      verifyFirebaseToken,
+      verifyManager,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await loansCollection.find().toArray();
+        res.send(result);
+      },
+    );
 
     // Endpoint to get single loan by ID
     app.get(
@@ -273,7 +279,7 @@ async function run() {
     app.patch(
       "/loans/:loanId",
       verifyFirebaseToken,
-
+      verifyAdmin,
       async (req, res) => {
         const id = req.params.loanId;
         const filter = { _id: new ObjectId(id) };
