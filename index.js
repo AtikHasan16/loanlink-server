@@ -235,7 +235,7 @@ async function run() {
     // ****** loan data ******* Manager
 
     // Endpoint to post loans
-    app.post("/loans", verifyFirebaseToken, verifyManager, async (req, res) => {
+    app.post("/loans", verifyFirebaseToken, async (req, res) => {
       const loan = req.body;
       const result = await loansCollection.insertOne(loan);
       res.send(result);
@@ -244,8 +244,7 @@ async function run() {
     app.get(
       "/loans",
       verifyFirebaseToken,
-      verifyManager,
-      verifyAdmin,
+
       async (req, res) => {
         const result = await loansCollection.find().toArray();
         res.send(result);
@@ -275,7 +274,7 @@ async function run() {
     app.patch(
       "/loans/:loanId",
       verifyFirebaseToken,
-      verifyAdmin,
+
       async (req, res) => {
         const id = req.params.loanId;
         const filter = { _id: new ObjectId(id) };
@@ -289,7 +288,7 @@ async function run() {
     app.patch(
       "/loans/edit-loan/:loanId",
       verifyFirebaseToken,
-      verifyAdmin,
+
       async (req, res) => {
         const id = req.params.loanId;
         const filter = { _id: new ObjectId(id) };
@@ -305,8 +304,7 @@ async function run() {
     app.delete(
       "/loans/:loanId",
       verifyFirebaseToken,
-      verifyAdmin,
-      verifyManager,
+
       async (req, res) => {
         const id = req.params.loanId;
         const query = { _id: new ObjectId(id) };
@@ -369,7 +367,6 @@ async function run() {
     app.patch(
       "/loanApplication/:applicationId",
       verifyFirebaseToken,
-      verifyManager,
       async (req, res) => {
         const id = req.params.applicationId;
         const { currentStatus } = req.body;
