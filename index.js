@@ -52,6 +52,8 @@ const verifyFirebaseToken = async (req, res, next) => {
 // ----------------- Mailgun setup --------------------
 
 app.post("/send-email", async (req, res) => {
+  console.log(req.body);
+
   const { name, email, message } = req.body;
   // Setup transporter for nodemailer
 
