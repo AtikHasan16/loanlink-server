@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
+const nodemailer = require("nodemailer");
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const port = process.env.PORT || 5000;
 
@@ -48,7 +49,49 @@ const verifyFirebaseToken = async (req, res, next) => {
   } catch (error) {}
   next();
 };
+// ----------------- Mailgun setup --------------------
 
+app.post("/send-email", async (req, res) => {
+  const { name, email, message } = req.body;
+  // Setup transporter for nodemailer
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  // 2. Configure the Email Content
+  const mailOptions = {
+    from: email, // This shows the user's email as the "sender" (visually)
+    to: process.env.EMAIL_USER, // The email where YOU want to receive the message
+    subject: `LoanLink : New Message from ${name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd;">
+        <h2 style="color: #333;">New Message Received</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Message:</strong></p>
+        <blockquote style="background: #f9f9f9; padding: 15px; border-left: 5px solid #007bff;">
+          ${message}
+        </blockquote>
+      </div>
+    `,
+  };
+
+  // 3. Send the Email
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).send({ success: true, message: "Email sent successfully" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).send({ success: false, message: "Failed to send email" });
+  }
+});
+
+// -------------------------------------------------------------------
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
